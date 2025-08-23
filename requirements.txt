@@ -1,0 +1,10 @@
+# Runtime
+streamlit>=1.36
+sqlmodel>=0.0.24
+numpy<2
+pandas>=2.2,<2.3
+pint>=0.23,<0.24
+openpyxl>=3.1
+requests>=2.32
+recipe-scrapers>=15.0.0
+beautifulsoup4>=4.12
