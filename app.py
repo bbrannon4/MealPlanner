@@ -190,7 +190,7 @@ if page == "Recipe Library":
             if auto_merged:
                 with st.expander(f"Auto-matched {len(auto_merged)} ingredient(s) to existing names", expanded=False):
                     for l in auto_merged:
-                        st.caption(f""{l['_auto_merged_from']}" → **{l['ingredient']}**")
+                        st.caption(f'"{l["_auto_merged_from"]}" → **{l["ingredient"]}**')
 
             # Medium-confidence matches — ask the user
             pending = st.session_state.get("import_pending", [])
@@ -199,9 +199,9 @@ if page == "Recipe Library":
                 user_choices = {}
                 for hit in pending:
                     choice = st.radio(
-                        f""{hit['original']}"",
+                        f'"{hit["original"]}"',
                         options=[hit["suggested"], hit["original"]],
-                        format_func=lambda x, hit=hit: f"Use existing "{x}"" if x == hit["suggested"] else f"Keep as new "{x}"",
+                        format_func=lambda x, hit=hit: f'Use existing "{x}"' if x == hit["suggested"] else f'Keep as new "{x}"',
                         key=f"match_{hit['line_idx']}",
                         horizontal=True,
                     )
