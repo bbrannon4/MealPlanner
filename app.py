@@ -17,6 +17,7 @@ from core.logic import (
 )
 from core.importers import fetch_and_parse_recipe
 from core.pdf import recipe_pdf_bytes
+from core.ingredients import resolve_lines
 
 APP_TITLE = "Meal Planner"
 
@@ -152,6 +153,8 @@ if page == "Recipe Library":
         st.session_state["import_data"] = None
     if "import_url_final" not in st.session_state:
         st.session_state["import_url_final"] = None
+    if "import_pending" not in st.session_state:
+        st.session_state["import_pending"] = []   # medium-confidence matches awaiting review
     if "editing_recipe_id" not in st.session_state:
         st.session_state["editing_recipe_id"] = None
 
@@ -164,9 +167,16 @@ if page == "Recipe Library":
         u = st.text_input("Recipe URL", key="import_url")
         if st.button("Fetch", key="fetch_url") and u.strip():
             try:
-                st.session_state["import_data"] = fetch_and_parse_recipe(u.strip())
+                data = fetch_and_parse_recipe(u.strip())
+                # Fuzzy-match ingredient names against existing DB ingredients
+                with get_session(engine) as ses:
+                    existing_names = [i.name for i in list_ingredients(ses)]
+                resolved, pending = resolve_lines(data["lines"], existing_names)
+                data["lines"] = resolved
+                st.session_state["import_data"] = data
                 st.session_state["import_url_final"] = u.strip()
-                st.success(f"Fetched: {st.session_state['import_data']['name']}")
+                st.session_state["import_pending"] = pending
+                st.success(f"Fetched: {data['name']}")
             except Exception as e:
                 st.error(f"Import failed: {e}")
 
@@ -174,6 +184,34 @@ if page == "Recipe Library":
             data = st.session_state["import_data"]
             st.text_area("Instructions (edit if you like)", value=data.get("notes") or "", key="imp_notes")
             imp_df = _df_or_blank(data.get("lines") or [])
+
+            # Show any auto-merged ingredients
+            auto_merged = [l for l in (data.get("lines") or []) if l.get("_auto_merged_from")]
+            if auto_merged:
+                with st.expander(f"Auto-matched {len(auto_merged)} ingredient(s) to existing names", expanded=False):
+                    for l in auto_merged:
+                        st.caption(f""{l['_auto_merged_from']}" → **{l['ingredient']}**")
+
+            # Medium-confidence matches — ask the user
+            pending = st.session_state.get("import_pending", [])
+            if pending:
+                st.markdown("**Review these possible matches:**")
+                user_choices = {}
+                for hit in pending:
+                    choice = st.radio(
+                        f""{hit['original']}"",
+                        options=[hit["suggested"], hit["original"]],
+                        format_func=lambda x, hit=hit: f"Use existing "{x}"" if x == hit["suggested"] else f"Keep as new "{x}"",
+                        key=f"match_{hit['line_idx']}",
+                        horizontal=True,
+                    )
+                    user_choices[hit["line_idx"]] = choice
+                # Apply choices back to the dataframe data
+                lines_with_choices = list(data.get("lines") or [])
+                for hit in pending:
+                    lines_with_choices[hit["line_idx"]]["ingredient"] = user_choices[hit["line_idx"]]
+                imp_df = _df_or_blank(lines_with_choices)
+
             edited = st.data_editor(imp_df, num_rows="dynamic", use_container_width=True, key="imp_table")
             with get_session(engine) as ses:
                 cat_options = [c.name for c in ses.exec(select(Category)).all()]
@@ -198,11 +236,13 @@ if page == "Recipe Library":
                         st.success(f"Saved imported recipe: {new_name or 'Imported Recipe'}")
                     st.session_state["import_data"] = None
                     st.session_state["import_url_final"] = None
+                    st.session_state["import_pending"] = []
                     st.rerun()
             with save_col2:
                 if st.button("Cancel import"):
                     st.session_state["import_data"] = None
                     st.session_state["import_url_final"] = None
+                    st.session_state["import_pending"] = []
                     st.rerun()
 
     # Manual add
