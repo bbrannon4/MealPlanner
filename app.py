@@ -16,6 +16,7 @@ from core.logic import (
     delete_unused_ingredients,
 )
 from core.importers import fetch_and_parse_recipe
+from core.pdf import recipe_pdf_bytes
 
 APP_TITLE = "Meal Planner"
 
@@ -260,11 +261,21 @@ if page == "Recipe Library":
         if recipes:
             sel = st.selectbox("Select a recipe", [f"{r.id}: {r.name}" for r in recipes], key="select_recipe_row")
             rid = int(sel.split(":")[0])
-            colE, colD = st.columns([1,1])
+            colE, colP, colD = st.columns([1, 1, 1])
             with colE:
                 if st.button("Edit selected"):
                     st.session_state["editing_recipe_id"] = rid
                     st.rerun()
+            with colP:
+                with get_session(engine) as ses:
+                    pdf_data = recipe_pdf_bytes(ses, rid)
+                recipe_name = sel.split(": ", 1)[-1]
+                st.download_button(
+                    "Print to PDF",
+                    data=pdf_data,
+                    file_name=f"{recipe_name}.pdf",
+                    mime="application/pdf",
+                )
             with colD:
                 if st.button("Delete selected"):
                     # Remove lines first (avoid FK/orphans), keep ingredients table intact
