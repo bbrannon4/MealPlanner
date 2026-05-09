@@ -1,5 +1,6 @@
 # Runtime
 streamlit>=1.36
+psycopg2-binary>=2.9
 sqlmodel>=0.0.24
 numpy<2
 pandas>=2.2,<2.3

@@ -45,7 +45,7 @@ htmlcov/
 *.sublime-*
 
 # --- Streamlit ---
-.streamlit/
+.streamlit/secrets.toml
 
 # --- Project data & outputs ---
 data/*

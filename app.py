@@ -1,5 +1,4 @@
 # File: app.py
-from pathlib import Path
 import pandas as pd
 import streamlit as st
 from sqlmodel import select
@@ -20,21 +19,19 @@ from core.importers import fetch_and_parse_recipe
 
 APP_TITLE = "Meal Planner"
 
-# Anchor DB to this file's directory
-BASE_DIR = Path(__file__).parent.resolve()
-DB_PATH = BASE_DIR / "data" / "mealplanner.db"
-DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-engine = init_engine(str(DB_PATH))
+engine = init_engine()
 init_db(engine)
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
 st.title(APP_TITLE)
 
-# Sidebar: DB path + counts
+# Sidebar: storage info + counts
 with st.sidebar:
-    st.caption("Storage")
-    st.code(str(DB_PATH), language="text")
+    db_url = engine.url
+    if db_url.drivername.startswith("postgresql"):
+        st.caption(f"Storage: PostgreSQL ({db_url.host})")
+    else:
+        st.caption(f"Storage: SQLite (local)")
     with get_session(engine) as ses:
         recipe_count = len(ses.exec(select(Recipe)).all())
         ingredient_count = len(ses.exec(select(Ingredient)).all())
